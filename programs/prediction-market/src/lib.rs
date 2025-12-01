@@ -1,4 +1,6 @@
 use anchor_lang::prelude::*;
+mod state;
+use crate::state::*;
 
 declare_id!("HjX8LkQdV4RMmvzbsxkkszNCX5tVDRdd2hp8xk1RKcJ1");
 
