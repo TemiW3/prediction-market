@@ -24,3 +24,13 @@ pub struct Market{
     pub final_result_value: i64,
     pub bump: u8,
 }
+
+#[account]
+#[derive(InitSpace)]
+pub struct Position {
+    pub user: Pubkey,
+    pub market: Pubkey,
+    pub yes_amount: u64,
+    pub no_amount: u64,
+    pub bump: u8,
+}
