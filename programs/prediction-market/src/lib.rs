@@ -24,5 +24,13 @@ pub mod prediction_market {
     ) -> Result<()> {
         create_market(ctx, question, home_team, away_team, game_key, start_time, end_time, resolution_time)
     }
+
+    pub fn place_bet_on_market(
+        ctx: Context<PlaceBet>,
+        amount: u64,
+        bet_home_wins: bool
+    ) -> Result<()> {
+        place_bet(ctx, amount, bet_home_wins)
+    }
 }
 
