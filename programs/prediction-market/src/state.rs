@@ -21,6 +21,7 @@ pub struct Market{
     pub outcome: Option<bool>,
     pub is_draw: bool,
     pub oracle_feed: Pubkey,
+    pub vault: Pubkey,
     pub final_result_value: i64,
     pub bump: u8,
 }

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-
+use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::state::*;
 use switchboard_solana::ID as SWITCHBOARD_PROGRAM_ID;
 
@@ -28,6 +28,7 @@ pub fn create_market(
         market.outcome = None;
         market.is_draw = false;
         market.oracle_feed = ctx.accounts.oracle_feed.key();
+        market.vault = ctx.accounts.vault.key();
         market.bump = ctx.bumps.market;
         Ok(())
     }
@@ -51,6 +52,18 @@ pub struct CreateMarket<'info> {
     #[account(owner = SWITCHBOARD_PROGRAM_ID)]
     pub oracle_feed: AccountInfo<'info>,
 
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"vault", market.key().as_ref()],
+        bump,
+        token::mint = mint,
+        token::authority = vault
+    )]
+    pub vault: Account<'info, TokenAccount>,
+
+    pub mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 
 }
