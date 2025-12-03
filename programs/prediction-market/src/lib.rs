@@ -32,5 +32,11 @@ pub mod prediction_market {
     ) -> Result<()> {
         place_bet(ctx, amount, bet_home_wins)
     }
+
+    pub fn resolve_market(
+        ctx: Context<ResolveMarket>
+    ) -> Result<()> {
+        resolve_with_switchboard_oracle(ctx)
+    }
 }
 
