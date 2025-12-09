@@ -16,4 +16,8 @@ pub enum PredictionMarketError {
     MathOverflow,
     #[msg("Match is not finished yet according to the oracle")]
     MatchNotFinished,
+    #[msg("Market is not yet resolved")]
+    MarketNotResolved,
+    #[msg("No winnings to claim")]
+    NoWinningsToClaim
 }
