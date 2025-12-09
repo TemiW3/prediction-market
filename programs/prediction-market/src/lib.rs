@@ -38,5 +38,11 @@ pub mod prediction_market {
     ) -> Result<()> {
         resolve_with_switchboard_oracle(ctx)
     }
+
+    pub fn claim_winnings_from_market(
+        ctx: Context<ClaimWinnings>
+    ) -> Result<()> {
+        claim_winnings(ctx)
+    }
 }
 
