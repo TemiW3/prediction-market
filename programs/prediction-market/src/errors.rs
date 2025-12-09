@@ -19,5 +19,7 @@ pub enum PredictionMarketError {
     #[msg("Market is not yet resolved")]
     MarketNotResolved,
     #[msg("No winnings to claim")]
-    NoWinningsToClaim
+    NoWinningsToClaim,
+    #[msg("Unauthorized to resolve this market")]
+    UnauthorizedResolver
 }

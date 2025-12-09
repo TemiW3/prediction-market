@@ -56,4 +56,7 @@ pub struct ResolveMarket<'info> {
         constraint = oracle_feed.key() == market.oracle_feed @ PredictionMarketError::InvalidFeed
     )]
     pub oracle_feed: AccountLoader<'info, AggregatorAccountData>,
+
+    #[account(constraint = authority.key() == market.authority @ PredictionMarketError::UnauthorizedResolver)]
+    pub authority: Signer<'info>,
 }

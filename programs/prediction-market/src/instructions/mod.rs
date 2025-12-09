@@ -1,5 +1,3 @@
-use anchor_lang::prelude::*;
-
 pub mod claim_winnings;
 pub mod create_market;
 pub mod place_bet;

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount, Transfer, transfer};
+use anchor_spl::token::{Token, TokenAccount};
 use crate::state::*;
 use crate::errors::*;
 
@@ -16,18 +16,24 @@ pub fn claim_winnings(ctx: Context<ClaimWinnings>) -> Result <()> {
         winnings = total_bet;
     } else if let Some(outcome) = market.outcome {
         if outcome {
+            // Home team won - payout to yes bettors
+            require!(market.yes_pool > 0, PredictionMarketError::MathOverflow);
             let yes_pool = market.yes_pool;
             let no_pool = market.no_pool;
+            let total_pool = yes_pool.checked_add(no_pool).ok_or(PredictionMarketError::MathOverflow)?;
             winnings = position.yes_amount
-                .checked_mul(yes_pool.checked_add(no_pool).ok_or(PredictionMarketError::MathOverflow)?)
+                .checked_mul(total_pool)
                 .ok_or(PredictionMarketError::MathOverflow)?
                 .checked_div(yes_pool)
                 .ok_or(PredictionMarketError::MathOverflow)?;
         } else {
+            // Away team won - payout to no bettors
+            require!(market.no_pool > 0, PredictionMarketError::MathOverflow);
             let yes_pool = market.yes_pool;
             let no_pool = market.no_pool;
+            let total_pool = yes_pool.checked_add(no_pool).ok_or(PredictionMarketError::MathOverflow)?;
             winnings = position.no_amount
-                .checked_mul(yes_pool.checked_add(no_pool).ok_or(PredictionMarketError::MathOverflow)?)
+                .checked_mul(total_pool)
                 .ok_or(PredictionMarketError::MathOverflow)?
                 .checked_div(no_pool)
                 .ok_or(PredictionMarketError::MathOverflow)?;
@@ -36,13 +42,18 @@ pub fn claim_winnings(ctx: Context<ClaimWinnings>) -> Result <()> {
 
     require!(winnings > 0, PredictionMarketError::NoWinningsToClaim);
 
+    let market_key = market.key();
     let cpi_accounts = anchor_spl::token::Transfer {
         from: ctx.accounts.market_vault.to_account_info(),
         to: ctx.accounts.user_token_account.to_account_info(),
-        authority: ctx.accounts.market.to_account_info(),
+        authority: ctx.accounts.market_vault.to_account_info(),
     };
-    let seeds = &[b"vault", market.authority.as_ref(), &[market.bump]];
-    let signer = &[&seeds[..]];
+    let vault_seeds = &[
+        b"vault",
+        market_key.as_ref(),
+        &[ctx.bumps.market_vault]
+    ];
+    let signer = &[&vault_seeds[..]];
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
     anchor_spl::token::transfer(cpi_ctx, winnings)?;
@@ -61,7 +72,11 @@ pub struct ClaimWinnings<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = position.user == user.key() @ PredictionMarketError::InvalidVault,
+        constraint = position.market == market.key() @ PredictionMarketError::InvalidVault
+    )]
     pub position: Account<'info, Position>,
 
     #[account(mut)]
@@ -76,7 +91,7 @@ pub struct ClaimWinnings<'info> {
     #[account(
         mut,
         seeds = [b"vault", market.key().as_ref()],
-        bump = market.bump,
+        bump,
     )]
     pub market_vault: Account<'info, TokenAccount>,
 
