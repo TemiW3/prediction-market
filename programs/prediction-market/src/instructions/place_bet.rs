@@ -9,6 +9,17 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount:u64, bet_home_wins: bool) -> Res
     require!(clock.unix_timestamp < ctx.accounts.market.start_time, PredictionMarketError::MarketAlreadyStarted);
     require!(!ctx.accounts.market.resolved, PredictionMarketError::MarketAlreadyResolved);
 
+    const FEE_BASIS_POINTS: u64 = 50; // 0.5%
+    const BASIS_POINT_DIVIDER: u64 = 10_000;
+
+    let fee_amount = amount
+        .checked_mul(FEE_BASIS_POINTS)
+        .unwrap()
+        .checked_div(BASIS_POINT_DIVIDER)
+        .unwrap();
+
+    let amount_after_fee = amount.checked_add(fee_amount).unwrap();
+
     let cpi_accounts = Transfer {
         from: ctx.accounts.user_token_account.to_account_info(),
         to: ctx.accounts.market_vault.to_account_info(),
@@ -16,7 +27,7 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount:u64, bet_home_wins: bool) -> Res
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    transfer(cpi_ctx, amount)?;
+    transfer(cpi_ctx, amount_after_fee)?;
 
     let market = &mut ctx.accounts.market;
     if bet_home_wins {
@@ -24,6 +35,8 @@ pub fn place_bet(ctx: Context<PlaceBet>, amount:u64, bet_home_wins: bool) -> Res
     } else {
         market.no_pool = market.no_pool.checked_add(amount).unwrap(); 
     }
+
+    market.fees_collected = market.fees_collected.checked_add(fee_amount).unwrap();
 
     let position = &mut ctx.accounts.position;
     if position.user == Pubkey::default() {

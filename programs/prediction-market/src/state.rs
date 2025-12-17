@@ -24,6 +24,7 @@ pub struct Market{
     pub vault: Pubkey,
     pub final_result_value: i64,
     pub bump: u8,
+    pub fees_collected: u64
 }
 
 #[account]
