@@ -11,30 +11,35 @@ describe("prediction-market", () => {
   const program = anchor.workspace
     .PredictionMarket as Program<PredictionMarket>;
 
-  it("test creating a prediction market", async () => {
-    const authority = (provider.wallet as any).payer as Keypair;
+  // Setup state
+  const authority = (provider.wallet as any).payer as Keypair;
+  let mint: PublicKey;
+  let oracleKeypair: Keypair;
+  const switchboardProgramId = new PublicKey(
+    "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f"
+  );
 
-    const question = "Will home team win?";
-    const homeTeam = "Team A";
-    const awayTeam = "Team B";
-    const gameKey = "GAME_001";
-    const now = Math.floor(Date.now() / 1000);
-    const startTime = new anchor.BN(now + 3600);
-    const endTime = new anchor.BN(now + 3600 + 7200);
-    const resolutionTime = new anchor.BN(now + 3600 + 7200 + 3600);
+  const question = "Will home team win?";
+  const homeTeam = "Team A";
+  const awayTeam = "Team B";
+  const gameKey = "GAME_001";
+  const now = Math.floor(Date.now() / 1000);
+  const startTime = new anchor.BN(now + 3600);
+  const endTime = new anchor.BN(now + 3600 + 7200);
+  const resolutionTime = new anchor.BN(now + 3600 + 7200 + 3600);
 
-    // Derive PDAs
-    const [marketPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("market"), Buffer.from(gameKey)],
-      program.programId
-    );
-    const [vaultPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), marketPda.toBuffer()],
-      program.programId
-    );
+  const [marketPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("market"), Buffer.from(gameKey)],
+    program.programId
+  );
+  const [vaultPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), marketPda.toBuffer()],
+    program.programId
+  );
 
+  before(async () => {
     // Create a mint for the market vault
-    const mint = await createMint(
+    mint = await createMint(
       provider.connection,
       authority,
       authority.publicKey,
@@ -43,12 +48,7 @@ describe("prediction-market", () => {
     );
 
     // Create a dummy oracle account owned by Switchboard program id
-    // Using Switchboard v2 Mainnet program ID (matches switchboard_solana crate)
-    const switchboardProgramId = new PublicKey(
-      "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f"
-    );
-    const oracleKeypair = Keypair.generate();
-
+    oracleKeypair = Keypair.generate();
     const lamports =
       await provider.connection.getMinimumBalanceForRentExemption(0);
     const createIx = SystemProgram.createAccount({
@@ -62,7 +62,9 @@ describe("prediction-market", () => {
       authority,
       oracleKeypair,
     ]);
+  });
 
+  it("test creating a prediction market", async () => {
     await program.methods
       .createFootballMarket(
         question,
