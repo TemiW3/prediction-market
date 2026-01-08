@@ -97,4 +97,34 @@ describe("prediction-market", () => {
     assert.strictEqual(market.resolved, false);
     assert.strictEqual(market.isDraw, false);
   });
+
+  it("fails to create duplicate market with same game_key", async () => {
+    try {
+      await program.methods
+        .createFootballMarket(
+          question,
+          homeTeam,
+          awayTeam,
+          gameKey, // Same game_key as first test
+          startTime,
+          endTime,
+          resolutionTime
+        )
+        .accounts({
+          market: marketPda,
+          authority: authority.publicKey,
+          oracleFeed: oracleKeypair.publicKey,
+          vault: vaultPda,
+          mint,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([authority])
+        .rpc();
+
+      assert.fail("Should have thrown an error");
+    } catch (err: any) {
+      assert.ok(err.message.includes("already in use"));
+    }
+  });
 });
