@@ -2,7 +2,12 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { PredictionMarket } from "../target/types/prediction_market";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
-import { createMint } from "@solana/spl-token";
+import {
+  createMint,
+  createAccount,
+  mintTo,
+  getAccount,
+} from "@solana/spl-token";
 import * as assert from "assert";
 
 describe("prediction-market", () => {
@@ -15,6 +20,10 @@ describe("prediction-market", () => {
   const authority = (provider.wallet as any).payer as Keypair;
   let mint: PublicKey;
   let oracleKeypair: Keypair;
+  let user1: Keypair;
+  let user1TokenAccount: PublicKey;
+  let user2: Keypair;
+  let user2TokenAccount: PublicKey;
   const switchboardProgramId = new PublicKey(
     "SW1TCH7qEPTdLsDHRgPuMQjbQxKdH2aBStViMFnt64f"
   );
@@ -62,6 +71,56 @@ describe("prediction-market", () => {
       authority,
       oracleKeypair,
     ]);
+
+    // Create test users with token accounts
+    user1 = Keypair.generate();
+    user2 = Keypair.generate();
+
+    // Airdrop SOL to users
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(
+        user1.publicKey,
+        10 * anchor.web3.LAMPORTS_PER_SOL
+      )
+    );
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(
+        user2.publicKey,
+        10 * anchor.web3.LAMPORTS_PER_SOL
+      )
+    );
+
+    // Create token accounts for users
+    user1TokenAccount = await createAccount(
+      provider.connection,
+      authority,
+      mint,
+      user1.publicKey
+    );
+    user2TokenAccount = await createAccount(
+      provider.connection,
+      authority,
+      mint,
+      user2.publicKey
+    );
+
+    // Mint tokens to users
+    await mintTo(
+      provider.connection,
+      authority,
+      mint,
+      user1TokenAccount,
+      authority.publicKey,
+      1_000_000_000 // 1000 tokens (6 decimals)
+    );
+    await mintTo(
+      provider.connection,
+      authority,
+      mint,
+      user2TokenAccount,
+      authority.publicKey,
+      1_000_000_000
+    );
   });
 
   it("test creating a prediction market", async () => {
@@ -222,5 +281,76 @@ describe("prediction-market", () => {
     const market = await program.account.market.fetch(marketPda3);
     assert.strictEqual(market.gameKey, gameKey3);
     assert.strictEqual(market.homeTeam, "Team C");
+  });
+
+  describe("place bet on market", () => {
+    it("places a bet on home team winning (yes)", async () => {
+      const betAmount = new anchor.BN(100_000_000); // 100 tokens
+      const [positionPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("position"),
+          marketPda.toBuffer(),
+          user1.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      const vaultBefore = await getAccount(provider.connection, vaultPda);
+      const userBalanceBefore = await getAccount(
+        provider.connection,
+        user1TokenAccount
+      );
+
+      await program.methods
+        .placeBetOnMarket(betAmount, true) // true = bet home wins
+        .accounts({
+          market: marketPda,
+          position: positionPda,
+          user: user1.publicKey,
+          userTokenAccount: user1TokenAccount,
+          marketVault: vaultPda,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        })
+        .signers([user1])
+        .rpc();
+
+      // Check position was created
+      const position = await program.account.position.fetch(positionPda);
+      assert.strictEqual(position.user.toString(), user1.publicKey.toString());
+      assert.strictEqual(position.market.toString(), marketPda.toString());
+      assert.strictEqual(position.yesAmount.toString(), betAmount.toString());
+      assert.strictEqual(position.noAmount.toString(), "0");
+
+      // Check market pools updated (amount without fee)
+      const market = await program.account.market.fetch(marketPda);
+      assert.strictEqual(market.yesPool.toString(), betAmount.toString());
+      assert.strictEqual(market.noPool.toString(), "0");
+
+      // Check fees collected (0.5% = 50 basis points)
+      const expectedFee = (betAmount.toNumber() * 50) / 10_000;
+      assert.strictEqual(
+        market.feesCollected.toString(),
+        expectedFee.toString()
+      );
+
+      // Check vault received tokens (amount + fee)
+      const vaultAfter = await getAccount(provider.connection, vaultPda);
+      const expectedTransfer = betAmount.toNumber() + expectedFee;
+      assert.strictEqual(
+        vaultAfter.amount.toString(),
+        (Number(vaultBefore.amount) + expectedTransfer).toString()
+      );
+
+      // Check user balance decreased
+      const userBalanceAfter = await getAccount(
+        provider.connection,
+        user1TokenAccount
+      );
+      assert.strictEqual(
+        userBalanceAfter.amount.toString(),
+        (Number(userBalanceBefore.amount) - expectedTransfer).toString()
+      );
+    });
   });
 });
