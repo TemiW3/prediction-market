@@ -123,48 +123,14 @@ describe("prediction-market", () => {
     );
   });
 
-  it("test creating a prediction market", async () => {
-    await program.methods
-      .createFootballMarket(
-        question,
-        homeTeam,
-        awayTeam,
-        gameKey,
-        startTime,
-        endTime,
-        resolutionTime
-      )
-      .accounts({
-        market: marketPda,
-        authority: authority.publicKey,
-        oracleFeed: oracleKeypair.publicKey,
-        vault: vaultPda,
-        mint,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([authority])
-      .rpc();
-
-    const market = await program.account.market.fetch(marketPda);
-    assert.strictEqual(market.question, question);
-    assert.strictEqual(market.homeTeam, homeTeam);
-    assert.strictEqual(market.awayTeam, awayTeam);
-    assert.strictEqual(market.gameKey, gameKey);
-    assert.strictEqual(market.yesPool.toString(), "0");
-    assert.strictEqual(market.noPool.toString(), "0");
-    assert.strictEqual(market.resolved, false);
-    assert.strictEqual(market.isDraw, false);
-  });
-
-  it("fails to create duplicate market with same game_key", async () => {
-    try {
+  describe("Creating a prediction Market", () => {
+    it("test creating a prediction market", async () => {
       await program.methods
         .createFootballMarket(
           question,
           homeTeam,
           awayTeam,
-          gameKey, // Same game_key as first test
+          gameKey,
           startTime,
           endTime,
           resolutionTime
@@ -181,55 +147,132 @@ describe("prediction-market", () => {
         .signers([authority])
         .rpc();
 
-      assert.fail("Should have thrown an error");
-    } catch (err: any) {
-      assert.ok(err.message.includes("already in use"));
-    }
-  });
-
-  it("fails with oracle account not owned by Switchboard", async () => {
-    const invalidOracle = Keypair.generate();
-    const gameKey2 = "GAME_002";
-    const [marketPda2] = PublicKey.findProgramAddressSync(
-      [Buffer.from("market"), Buffer.from(gameKey2)],
-      program.programId
-    );
-    const [vaultPda2] = PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), marketPda2.toBuffer()],
-      program.programId
-    );
-
-    // Create account owned by system program (not Switchboard)
-    const lamports =
-      await provider.connection.getMinimumBalanceForRentExemption(0);
-    const createIx = SystemProgram.createAccount({
-      fromPubkey: authority.publicKey,
-      newAccountPubkey: invalidOracle.publicKey,
-      lamports,
-      space: 0,
-      programId: SystemProgram.programId, // Wrong owner!
+      const market = await program.account.market.fetch(marketPda);
+      assert.strictEqual(market.question, question);
+      assert.strictEqual(market.homeTeam, homeTeam);
+      assert.strictEqual(market.awayTeam, awayTeam);
+      assert.strictEqual(market.gameKey, gameKey);
+      assert.strictEqual(market.yesPool.toString(), "0");
+      assert.strictEqual(market.noPool.toString(), "0");
+      assert.strictEqual(market.resolved, false);
+      assert.strictEqual(market.isDraw, false);
     });
-    await provider.sendAndConfirm(new anchor.web3.Transaction().add(createIx), [
-      authority,
-      invalidOracle,
-    ]);
 
-    try {
+    it("fails to create duplicate market with same game_key", async () => {
+      try {
+        await program.methods
+          .createFootballMarket(
+            question,
+            homeTeam,
+            awayTeam,
+            gameKey, // Same game_key as first test
+            startTime,
+            endTime,
+            resolutionTime
+          )
+          .accounts({
+            market: marketPda,
+            authority: authority.publicKey,
+            oracleFeed: oracleKeypair.publicKey,
+            vault: vaultPda,
+            mint,
+            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([authority])
+          .rpc();
+
+        assert.fail("Should have thrown an error");
+      } catch (err: any) {
+        assert.ok(err.message.includes("already in use"));
+      }
+    });
+
+    it("fails with oracle account not owned by Switchboard", async () => {
+      const invalidOracle = Keypair.generate();
+      const gameKey2 = "GAME_002";
+      const [marketPda2] = PublicKey.findProgramAddressSync(
+        [Buffer.from("market"), Buffer.from(gameKey2)],
+        program.programId
+      );
+      const [vaultPda2] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault"), marketPda2.toBuffer()],
+        program.programId
+      );
+
+      // Create account owned by system program (not Switchboard)
+      const lamports =
+        await provider.connection.getMinimumBalanceForRentExemption(0);
+      const createIx = SystemProgram.createAccount({
+        fromPubkey: authority.publicKey,
+        newAccountPubkey: invalidOracle.publicKey,
+        lamports,
+        space: 0,
+        programId: SystemProgram.programId, // Wrong owner!
+      });
+      await provider.sendAndConfirm(
+        new anchor.web3.Transaction().add(createIx),
+        [authority, invalidOracle]
+      );
+
+      try {
+        await program.methods
+          .createFootballMarket(
+            question,
+            homeTeam,
+            awayTeam,
+            gameKey2,
+            startTime,
+            endTime,
+            resolutionTime
+          )
+          .accounts({
+            market: marketPda2,
+            authority: authority.publicKey,
+            oracleFeed: invalidOracle.publicKey,
+            vault: vaultPda2,
+            mint,
+            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([authority])
+          .rpc();
+
+        assert.fail("Should have thrown an error");
+      } catch (err: any) {
+        assert.ok(
+          err.message.includes("ConstraintOwner") ||
+            err.message.includes("owner")
+        );
+      }
+    });
+
+    it("creates market with different game_key successfully", async () => {
+      const gameKey3 = "GAME_003";
+      const [marketPda3] = PublicKey.findProgramAddressSync(
+        [Buffer.from("market"), Buffer.from(gameKey3)],
+        program.programId
+      );
+      const [vaultPda3] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault"), marketPda3.toBuffer()],
+        program.programId
+      );
+
       await program.methods
         .createFootballMarket(
-          question,
-          homeTeam,
-          awayTeam,
-          gameKey2,
+          "Will away team win?",
+          "Team C",
+          "Team D",
+          gameKey3,
           startTime,
           endTime,
           resolutionTime
         )
         .accounts({
-          market: marketPda2,
+          market: marketPda3,
           authority: authority.publicKey,
-          oracleFeed: invalidOracle.publicKey,
-          vault: vaultPda2,
+          oracleFeed: oracleKeypair.publicKey,
+          vault: vaultPda3,
           mint,
           tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -237,53 +280,13 @@ describe("prediction-market", () => {
         .signers([authority])
         .rpc();
 
-      assert.fail("Should have thrown an error");
-    } catch (err: any) {
-      assert.ok(
-        err.message.includes("ConstraintOwner") || err.message.includes("owner")
-      );
-    }
+      const market = await program.account.market.fetch(marketPda3);
+      assert.strictEqual(market.gameKey, gameKey3);
+      assert.strictEqual(market.homeTeam, "Team C");
+    });
   });
 
-  it("creates market with different game_key successfully", async () => {
-    const gameKey3 = "GAME_003";
-    const [marketPda3] = PublicKey.findProgramAddressSync(
-      [Buffer.from("market"), Buffer.from(gameKey3)],
-      program.programId
-    );
-    const [vaultPda3] = PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), marketPda3.toBuffer()],
-      program.programId
-    );
-
-    await program.methods
-      .createFootballMarket(
-        "Will away team win?",
-        "Team C",
-        "Team D",
-        gameKey3,
-        startTime,
-        endTime,
-        resolutionTime
-      )
-      .accounts({
-        market: marketPda3,
-        authority: authority.publicKey,
-        oracleFeed: oracleKeypair.publicKey,
-        vault: vaultPda3,
-        mint,
-        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([authority])
-      .rpc();
-
-    const market = await program.account.market.fetch(marketPda3);
-    assert.strictEqual(market.gameKey, gameKey3);
-    assert.strictEqual(market.homeTeam, "Team C");
-  });
-
-  describe("place bet on market", () => {
+  describe("Placing a bet on a market", () => {
     it("places a bet on home team winning (yes)", async () => {
       const betAmount = new anchor.BN(100_000_000); // 100 tokens
       const [positionPda] = PublicKey.findProgramAddressSync(
