@@ -352,6 +352,7 @@ describe("prediction-market", () => {
         (Number(userBalanceBefore.amount) - expectedTransfer).toString()
       );
     });
+
     it("places a bet on away team winning (no)", async () => {
       const betAmount = new anchor.BN(50_000_000); // 50 tokens
       const [positionPda] = PublicKey.findProgramAddressSync(
@@ -383,6 +384,61 @@ describe("prediction-market", () => {
 
       const market = await program.account.market.fetch(marketPda);
       assert.strictEqual(market.noPool.toString(), betAmount.toString());
+    });
+
+    it("allows same user to place multiple bets", async () => {
+      const betAmount1 = new anchor.BN(25_000_000); // 25 tokens
+      const betAmount2 = new anchor.BN(30_000_000); // 30 tokens
+      const [positionPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("position"),
+          marketPda.toBuffer(),
+          user1.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      const positionBefore = await program.account.position.fetch(positionPda);
+
+      // Place another yes bet
+      await program.methods
+        .placeBetOnMarket(betAmount1, true)
+        .accounts({
+          market: marketPda,
+          position: positionPda,
+          user: user1.publicKey,
+          userTokenAccount: user1TokenAccount,
+          marketVault: vaultPda,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        })
+        .signers([user1])
+        .rpc();
+
+      // Place a no bet
+      await program.methods
+        .placeBetOnMarket(betAmount2, false)
+        .accounts({
+          market: marketPda,
+          position: positionPda,
+          user: user1.publicKey,
+          userTokenAccount: user1TokenAccount,
+          marketVault: vaultPda,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        })
+        .signers([user1])
+        .rpc();
+
+      const positionAfter = await program.account.position.fetch(positionPda);
+      assert.strictEqual(
+        positionAfter.yesAmount.toString(),
+        (positionBefore.yesAmount.toNumber() + betAmount1.toNumber()).toString()
+      );
+      assert.strictEqual(
+        positionAfter.noAmount.toString(),
+        betAmount2.toString()
+      );
     });
   });
 });
