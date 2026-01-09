@@ -440,5 +440,125 @@ describe("prediction-market", () => {
         betAmount2.toString()
       );
     });
+
+    it("fails to bet after market start time", async () => {
+      // Create a market that has already started
+      const pastGameKey = "GAME_PAST";
+      const pastStartTime = new anchor.BN(now - 3600); // 1 hour ago
+      const pastEndTime = new anchor.BN(now + 3600);
+      const pastResolutionTime = new anchor.BN(now + 7200);
+
+      const [pastMarketPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("market"), Buffer.from(pastGameKey)],
+        program.programId
+      );
+      const [pastVaultPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault"), pastMarketPda.toBuffer()],
+        program.programId
+      );
+
+      await program.methods
+        .createFootballMarket(
+          "Past market",
+          "Team X",
+          "Team Y",
+          pastGameKey,
+          pastStartTime,
+          pastEndTime,
+          pastResolutionTime
+        )
+        .accounts({
+          market: pastMarketPda,
+          authority: authority.publicKey,
+          oracleFeed: oracleKeypair.publicKey,
+          vault: pastVaultPda,
+          mint,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([authority])
+        .rpc();
+
+      const [positionPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("position"),
+          pastMarketPda.toBuffer(),
+          user1.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      try {
+        await program.methods
+          .placeBetOnMarket(new anchor.BN(10_000_000), true)
+          .accounts({
+            market: pastMarketPda,
+            position: positionPda,
+            user: user1.publicKey,
+            userTokenAccount: user1TokenAccount,
+            marketVault: pastVaultPda,
+            systemProgram: SystemProgram.programId,
+            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          })
+          .signers([user1])
+          .rpc();
+
+        assert.fail("Should have thrown an error");
+      } catch (err: any) {
+        assert.ok(
+          err.message.includes("MarketAlreadyStarted") ||
+            err.message.includes("6000")
+        );
+      }
+    });
+
+    it("fails to bet with invalid vault", async () => {
+      // Try to use a different market's vault
+      const gameKey4 = "GAME_004";
+      const [marketPda4] = PublicKey.findProgramAddressSync(
+        [Buffer.from("market"), Buffer.from(gameKey4)],
+        program.programId
+      );
+      const [wrongVaultPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault"), marketPda4.toBuffer()],
+        program.programId
+      );
+
+      const [positionPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("position"),
+          marketPda.toBuffer(),
+          user1.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      try {
+        await program.methods
+          .placeBetOnMarket(new anchor.BN(10_000_000), true)
+          .accounts({
+            market: marketPda,
+            position: positionPda,
+            user: user1.publicKey,
+            userTokenAccount: user1TokenAccount,
+            marketVault: wrongVaultPda, // Vault for different market
+            systemProgram: SystemProgram.programId,
+            tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          })
+          .signers([user1])
+          .rpc();
+
+        assert.fail("Should have thrown an error");
+      } catch (err: any) {
+        // Should fail constraint check that vault belongs to market
+        assert.ok(
+          err.message.includes("InvalidVault") ||
+            err.message.includes("ConstraintRaw") ||
+            err.message.includes("6002") || // InvalidVault error code
+            err.message.includes("AccountNotInitialized") ||
+            err.message.includes("3012")
+        );
+      }
+    });
   });
 });
