@@ -10,6 +10,8 @@ import {
 } from "@solana/spl-token";
 import * as assert from "assert";
 
+
+
 describe("prediction-market", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.getProvider() as anchor.AnchorProvider;
@@ -560,6 +562,81 @@ describe("prediction-market", () => {
             err.message.includes("6002") || // InvalidVault error code
             err.message.includes("AccountNotInitialized") ||
             err.message.includes("3012")
+        );
+      }
+    });
+  });
+
+  describe("Resolving a market", () => {
+    /**
+     * Note: Complete resolution testing requires valid Switchboard aggregator data.
+     * 
+     * These tests validate constraint checks (oracle ownership, feed matching),
+     * but cannot test the full resolution logic (time checks, result parsing) with
+     * mock oracle accounts because:
+     * 
+     * 1. Switchboard accounts must be owned by the Switchboard program
+     * 2. Only the Switchboard program can write valid aggregator data
+     * 3. AccountLoader deserializes account data before instruction handler runs
+     * 4. Dummy accounts fail deserialization, preventing business logic from executing
+     * 
+     * For complete integration testing of resolution logic:
+     * - Use actual Switchboard aggregators on devnet
+     * - Or add a test-only resolve instruction that bypasses oracle validation
+     */
+    
+    it("fails to resolve market with invalid oracle data", async () => {
+      // Our dummy oracle has no valid aggregator data
+      try {
+        await program.methods
+          .resolveMarket()
+          .accounts({
+            market: marketPda,
+            oracleFeed: oracleKeypair.publicKey,
+          })
+          .rpc();
+        assert.fail("Should have thrown an error");
+      } catch (err: any) {
+        // Oracle account deserialization fails - no valid aggregator data
+        assert.ok(
+          err.message.includes("AccountDiscriminatorNotFound") ||
+            err.message.includes("3001")
+        );
+      }
+    });
+
+    it("fails with wrong oracle feed", async () => {
+      const badOracle = Keypair.generate();
+      // Create a mismatched oracle account (still Switchboard-owned)
+      const lamports =
+        await provider.connection.getMinimumBalanceForRentExemption(0);
+      const createIx = SystemProgram.createAccount({
+        fromPubkey: authority.publicKey,
+        newAccountPubkey: badOracle.publicKey,
+        lamports,
+        space: 0,
+        programId: switchboardProgramId,
+      });
+      await provider.sendAndConfirm(
+        new anchor.web3.Transaction().add(createIx),
+        [authority, badOracle]
+      );
+
+      try {
+        await program.methods
+          .resolveMarket()
+          .accounts({
+            market: marketPda,
+            oracleFeed: badOracle.publicKey,
+          })
+          .rpc();
+        assert.fail("Should have thrown an error");
+      } catch (err: any) {
+        // Constraint check fails - oracle feed doesn't match market's oracle_feed
+        assert.ok(
+          err.message.includes("InvalidFeed") ||
+            err.message.includes("6003") ||
+            err.message.includes("ConstraintRaw")
         );
       }
     });
