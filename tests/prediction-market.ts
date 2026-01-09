@@ -352,5 +352,37 @@ describe("prediction-market", () => {
         (Number(userBalanceBefore.amount) - expectedTransfer).toString()
       );
     });
+    it("places a bet on away team winning (no)", async () => {
+      const betAmount = new anchor.BN(50_000_000); // 50 tokens
+      const [positionPda] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("position"),
+          marketPda.toBuffer(),
+          user2.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+      await program.methods
+        .placeBetOnMarket(betAmount, false) // false = bet away wins
+        .accounts({
+          market: marketPda,
+          position: positionPda,
+          user: user2.publicKey,
+          userTokenAccount: user2TokenAccount,
+          marketVault: vaultPda,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        })
+        .signers([user2])
+        .rpc();
+
+      const position = await program.account.position.fetch(positionPda);
+      assert.strictEqual(position.yesAmount.toString(), "0");
+      assert.strictEqual(position.noAmount.toString(), betAmount.toString());
+
+      const market = await program.account.market.fetch(marketPda);
+      assert.strictEqual(market.noPool.toString(), betAmount.toString());
+    });
   });
 });
