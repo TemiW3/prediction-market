@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)] // Allow Solana-specific cfg values emitted by Anchor macros
+
 use anchor_lang::prelude::*;
 mod state;
 mod instructions;
@@ -43,6 +45,11 @@ pub mod prediction_market {
         ctx: Context<ClaimWinnings>
     ) -> Result<()> {
         claim_winnings(ctx)
+    }
+    pub fn update_feed(
+        ctx: Context<UpdateOracleFeed>
+    ) -> Result<()> {
+        update_oracle_feed(ctx)
     }
 }
 

@@ -21,5 +21,7 @@ pub enum PredictionMarketError {
     #[msg("No winnings to claim")]
     NoWinningsToClaim,
     #[msg("Unauthorized to resolve this market")]
-    UnauthorizedResolver
+    UnauthorizedResolver,
+    #[msg("Unauthorized to update the oracle feed")]
+    UnauthorizedUpdater,
 }
