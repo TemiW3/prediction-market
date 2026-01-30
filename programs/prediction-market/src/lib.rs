@@ -46,6 +46,11 @@ pub mod prediction_market {
     ) -> Result<()> {
         claim_winnings(ctx)
     }
+    pub fn collect_fees_from_market(
+        ctx: Context<CollectFees>
+    ) -> Result<()> {
+        collect_fees(ctx)
+    }
     pub fn update_feed(
         ctx: Context<UpdateOracleFeed>
     ) -> Result<()> {

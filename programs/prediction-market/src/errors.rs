@@ -24,4 +24,8 @@ pub enum PredictionMarketError {
     UnauthorizedResolver,
     #[msg("Unauthorized to update the oracle feed")]
     UnauthorizedUpdater,
+    #[msg("Unauthorized to collect fees")]
+    UnauthorizedFeeCollector,
+    #[msg("No fees to collect")]
+    NoFeesToCollect,
 }
