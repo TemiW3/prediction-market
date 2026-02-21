@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use crate::state::*;
 use crate::errors::*;
 use switchboard_on_demand::on_demand::accounts::pull_feed::PullFeedAccountData;
+use switchboard_on_demand::prelude::rust_decimal::prelude::ToPrimitive;
 
 pub fn resolve_with_switchboard_oracle(ctx: Context<ResolveMarket>) -> Result<()> {
     let clock = Clock::get()?;
@@ -29,9 +30,11 @@ pub fn resolve_with_switchboard_oracle(ctx: Context<ResolveMarket>) -> Result<()
 
     // Get the oracle result
     // Your API returns: -1 = not finished, 0 = away wins, 1 = home wins, 2 = draw
-    let result: i8 = feed.value()
-        .try_into()
+    let decimal_result = feed.value(clock.slot)
         .map_err(|_| PredictionMarketError::InvalidOracleValue)?;
+    let result: i8 = decimal_result
+        .to_u8()
+        .ok_or(PredictionMarketError::InvalidOracleValue)?.try_into().unwrap();
 
     msg!("Switchboard On-Demand oracle result: {}", result);
 

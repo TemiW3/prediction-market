@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use crate::state::*;
-use switchboard_solana::ID as SWITCHBOARD_PROGRAM_ID;
 
 pub fn create_market(
         ctx: Context<CreateMarket>,
@@ -12,6 +11,7 @@ pub fn create_market(
         start_time: i64,
         end_time: i64,
         resolution_time: i64,
+        oracle_feed: [u8; 32]
     ) -> Result<()> {
         let market = &mut ctx.accounts.market;
         market.authority = ctx.accounts.authority.key();
@@ -23,18 +23,28 @@ pub fn create_market(
         market.end_time = end_time;
         market.resolution_time = resolution_time;
         market.yes_pool = 0; 
-        market.no_pool = 0;  
+        market.no_pool = 0; 
+        market.draw_pool = 0; 
         market.resolved = false;
         market.outcome = None;
         market.is_draw = false;
-        market.oracle_feed = ctx.accounts.oracle_feed.key();
+        market.oracle_feed = oracle_feed;
         market.vault = ctx.accounts.vault.key();
         market.bump = ctx.bumps.market;
+
+        msg!(
+        "Market created: {} vs {} | Game key: {}", 
+        market.home_team, 
+        market.away_team,
+        market.game_key
+        );
+
+        msg!("Feed hash stored: {:?}", market.oracle_feed);
         Ok(())
     }
 
 #[derive(Accounts)]
-#[instruction(question: String, home_team: String, away_team: String, game_key: String)]
+#[instruction(question: String, home_team: String, away_team: String, game_key: String, start_time: i64, end_time: i64, resolution_time: i64, oracle_feed: [u8; 32])]
 pub struct CreateMarket<'info> {
     #[account(
         init,
@@ -47,10 +57,6 @@ pub struct CreateMarket<'info> {
 
     #[account(mut)]
     pub authority: Signer<'info>,
-
-    /// CHECK: Switchboard aggregator account - validated by owner check
-    #[account(owner = SWITCHBOARD_PROGRAM_ID)]
-    pub oracle_feed: AccountInfo<'info>,
 
     #[account(
         init,
