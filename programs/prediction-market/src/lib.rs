@@ -6,6 +6,7 @@ mod instructions;
 mod errors;
 
 use instructions::*;
+use state::*;
 pub use errors::*;
 
 declare_id!("HjX8LkQdV4RMmvzbsxkkszNCX5tVDRdd2hp8xk1RKcJ1");
@@ -32,9 +33,9 @@ pub mod prediction_market {
     pub fn place_bet_on_market(
         ctx: Context<PlaceBet>,
         amount: u64,
-        bet_home_wins: bool
+        bet_type: BetType
     ) -> Result<()> {
-        place_bet(ctx, amount, bet_home_wins)
+        place_bet(ctx, amount, bet_type)
     }
 
     pub fn resolve_market(

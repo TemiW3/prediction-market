@@ -30,4 +30,6 @@ pub enum PredictionMarketError {
     NoFeesToCollect,
     #[msg("Invalid oracle value")]
     InvalidOracleValue,
+    #[msg("Invalid amount")]
+    InvalidAmount,
 }

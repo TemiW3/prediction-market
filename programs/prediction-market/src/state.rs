@@ -28,6 +28,13 @@ pub struct Market{
     pub fees_collected: u64
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BetType {
+    Home,
+    Away,
+    Draw,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Position {
@@ -35,5 +42,6 @@ pub struct Position {
     pub market: Pubkey,
     pub yes_amount: u64,
     pub no_amount: u64,
+    pub draw_amount: u64,
     pub bump: u8,
 }

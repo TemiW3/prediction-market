@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 use crate::state::*;
 use crate::errors::*;
 use switchboard_on_demand::on_demand::accounts::pull_feed::PullFeedAccountData;
-use switchboard_on_demand::prelude::rust_decimal::prelude::ToPrimitive;
 
 pub fn resolve_with_switchboard_oracle(ctx: Context<ResolveMarket>) -> Result<()> {
     let clock = Clock::get()?;
@@ -30,11 +29,21 @@ pub fn resolve_with_switchboard_oracle(ctx: Context<ResolveMarket>) -> Result<()
 
     // Get the oracle result
     // Your API returns: -1 = not finished, 0 = away wins, 1 = home wins, 2 = draw
-    let decimal_result = feed.value(clock.slot)
+    
+    // The correct API depends on your switchboard-on-demand version:
+    // Try Option 1 first, if it doesn't compile, use Option 2
+    
+    // Option 1: Pass clock reference (most common in newer versions)
+    let oracle_value = feed.value(clock.slot)
         .map_err(|_| PredictionMarketError::InvalidOracleValue)?;
-    let result: i8 = decimal_result
-        .to_u8()
-        .ok_or(PredictionMarketError::InvalidOracleValue)?.try_into().unwrap();
+    
+    // Option 2: If Option 1 doesn't compile, try accessing as a field
+    // let oracle_value = feed.value;
+    
+    // Convert to i8 (NOT u8, because we need to handle -1!)
+    let result: i8 = oracle_value
+        .try_into()
+        .map_err(|_| PredictionMarketError::InvalidOracleValue)?;
 
     msg!("Switchboard On-Demand oracle result: {}", result);
 
