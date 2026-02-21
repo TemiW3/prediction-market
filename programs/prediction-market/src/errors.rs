@@ -28,4 +28,6 @@ pub enum PredictionMarketError {
     UnauthorizedFeeCollector,
     #[msg("No fees to collect")]
     NoFeesToCollect,
+    #[msg("Invalid oracle value")]
+    InvalidOracleValue,
 }
