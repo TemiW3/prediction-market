@@ -128,6 +128,17 @@ export function deriveVaultPda(
   );
 }
 
+export function derivePositionPda(
+  programId: PublicKey,
+  marketPda: PublicKey,
+  user: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("position"), marketPda.toBuffer(), user.toBuffer()],
+    programId
+  );
+}
+
 export function getTimeValues(offsetHours: number = 1) {
   const now = Math.floor(Date.now() / 1000);
   return {
