@@ -44,7 +44,7 @@ pub fn create_market(
     }
 
 #[derive(Accounts)]
-#[instruction(game_key: String)]
+#[instruction(question: String, home_team: String, away_team: String, game_key: String)]
 pub struct CreateMarket<'info> {
     #[account(
         init,
