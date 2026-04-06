@@ -64,4 +64,78 @@ describe("Create Market", () => {
     assert.strictEqual(market.resolved, false);
     assert.strictEqual(market.vault.toString(), vaultPda.toString());
   });
+
+  it("rejects invalid time schedule (start not before end)", async () => {
+    const gameKey = "GAME_BAD_SCHEDULE_1";
+    const now = Math.floor(Date.now() / 1000);
+    const oracleFeedHash = generateOracleFeedHash();
+
+    try {
+      await program.methods
+        .createFootballMarket(
+          "Bad schedule",
+          "A",
+          "B",
+          gameKey,
+          new anchor.BN(now + 3600),
+          new anchor.BN(now + 1800), // end before start
+          new anchor.BN(now + 7200),
+          oracleFeedHash,
+        )
+        .accountsPartial({
+          authority: context.authority.publicKey,
+          mint: context.mint,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .signers([context.authority])
+        .rpc();
+
+      assert.fail("Should have thrown");
+    } catch (error: any) {
+      const msg = error.message || error.toString() || "";
+      assert.ok(
+        msg.includes("InvalidMarketSchedule") ||
+          msg.includes("2006") ||
+          msg.includes("Constraint")
+      );
+    }
+  });
+
+  it("rejects invalid time schedule (resolution before end)", async () => {
+    const gameKey = "GAME_BAD_SCHEDULE_2";
+    const now = Math.floor(Date.now() / 1000);
+    const oracleFeedHash = generateOracleFeedHash();
+
+    try {
+      await program.methods
+        .createFootballMarket(
+          "Bad resolution time",
+          "A",
+          "B",
+          gameKey,
+          new anchor.BN(now),
+          new anchor.BN(now + 7200),
+          new anchor.BN(now + 3600), // resolution before end
+          oracleFeedHash,
+        )
+        .accountsPartial({
+          authority: context.authority.publicKey,
+          mint: context.mint,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .signers([context.authority])
+        .rpc();
+
+      assert.fail("Should have thrown");
+    } catch (error: any) {
+      const msg = error.message || error.toString() || "";
+      assert.ok(
+        msg.includes("InvalidMarketSchedule") ||
+          msg.includes("2006") ||
+          msg.includes("Constraint")
+      );
+    }
+  });
 });

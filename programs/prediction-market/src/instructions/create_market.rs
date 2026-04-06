@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use crate::errors::*;
 use crate::state::*;
 
 pub fn create_market(
@@ -13,6 +14,12 @@ pub fn create_market(
         resolution_time: i64,
         oracle_feed: [u8; 32]
     ) -> Result<()> {
+        require!(start_time < end_time, PredictionMarketError::InvalidMarketSchedule);
+        require!(
+            resolution_time >= end_time,
+            PredictionMarketError::InvalidMarketSchedule
+        );
+
         let market = &mut ctx.accounts.market;
         market.authority = ctx.accounts.authority.key();
         market.question = question;

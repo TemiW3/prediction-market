@@ -38,4 +38,6 @@ pub enum PredictionMarketError {
     InvalidAmount,
     #[msg("Unauthorized to resolve this market")]
     UnauthorizedResolver,
+    #[msg("Invalid market time schedule (require start < end and resolution not before end)")]
+    InvalidMarketSchedule,
 }

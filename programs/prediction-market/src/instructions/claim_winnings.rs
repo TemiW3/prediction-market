@@ -135,6 +135,7 @@ pub struct ClaimWinnings<'info> {
     #[account(
         mut,
         constraint = user_token_account.owner == user.key() @ PredictionMarketError::InvalidTokenAccountOwner,
+        constraint = user_token_account.mint == market_vault.mint @ PredictionMarketError::InvalidTokenMint,
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 
