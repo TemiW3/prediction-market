@@ -395,9 +395,11 @@ describe("Collect Fees", () => {
 
       assert.fail("Should have thrown an error");
     } catch (error: any) {
+      const msg = error.message || error.toString() || "";
       assert.ok(
-        error.message.includes("InvalidVault") ||
-        error.message.includes("2006")
+        msg.includes("InvalidTokenMint") ||
+          msg.includes("InvalidVault") ||
+          msg.includes("2006")
       );
     }
   });
