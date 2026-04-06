@@ -36,4 +36,6 @@ pub enum PredictionMarketError {
     InvalidOracleValue,
     #[msg("Invalid amount")]
     InvalidAmount,
+    #[msg("Unauthorized to resolve this market")]
+    UnauthorizedResolver,
 }

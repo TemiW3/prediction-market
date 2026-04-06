@@ -95,6 +95,11 @@ pub struct ResolveMarket<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
 
+    #[account(
+        constraint = authority.key() == market.authority @ PredictionMarketError::UnauthorizedResolver
+    )]
+    pub authority: Signer<'info>,
+
     /// CHECK: Switchboard On-Demand pull feed account
     /// The feed hash stored in the market account is used to verify this is the correct feed
     pub oracle_feed: AccountInfo<'info>,

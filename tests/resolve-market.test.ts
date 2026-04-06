@@ -75,10 +75,12 @@ describe("Resolve Market", () => {
     try {
       await program.methods
         .resolveMarket()
-        .accounts({
+        .accountsPartial({
           market: futureMarketPda,
+          authority: context.authority.publicKey,
           oracleFeed: mockOracleFeed.publicKey,
         } as any)
+        .signers([context.authority])
         .rpc();
 
       assert.fail("Should have thrown an error");
@@ -129,6 +131,56 @@ describe("Resolve Market", () => {
     // But since we can't easily create a valid Switchboard feed, we verify the initial state
   });
 
+  it("fails when signer is not the market authority", async () => {
+    const { startTime, endTime, resolutionTime } = getTimeValues(-1);
+    const oracleFeedHash = generateOracleFeedHash();
+    const unauthGameKey = "GAME_UNAUTH_RESOLVE";
+
+    await program.methods
+      .createFootballMarket(
+        "Unauth resolve test",
+        "Team A",
+        "Team B",
+        unauthGameKey,
+        startTime,
+        endTime,
+        resolutionTime,
+        oracleFeedHash,
+      )
+      .accountsPartial({
+        authority: context.authority.publicKey,
+        mint: context.mint,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      } as any)
+      .signers([context.authority])
+      .rpc();
+
+    const [unauthMarketPda] = deriveMarketPda(program.programId, unauthGameKey);
+    const mockOracleFeed = Keypair.generate();
+
+    try {
+      await program.methods
+        .resolveMarket()
+        .accountsPartial({
+          market: unauthMarketPda,
+          authority: context.user1.publicKey,
+          oracleFeed: mockOracleFeed.publicKey,
+        } as any)
+        .signers([context.user1])
+        .rpc();
+
+      assert.fail("Should have thrown an error");
+    } catch (error: any) {
+      const msg = error.message || error.toString() || "";
+      assert.ok(
+        msg.includes("UnauthorizedResolver") ||
+          msg.includes("ConstraintRaw") ||
+          msg.includes("2006")
+      );
+    }
+  });
+
   it("fails with invalid oracle feed", async () => {
     // Create a market
     const { startTime, endTime, resolutionTime } = getTimeValues(-1); // Resolution time in the past
@@ -165,10 +217,12 @@ describe("Resolve Market", () => {
     try {
       await program.methods
         .resolveMarket()
-        .accounts({
+        .accountsPartial({
           market: invalidFeedMarketPda,
+          authority: context.authority.publicKey,
           oracleFeed: mockOracleFeed.publicKey,
         } as any)
+        .signers([context.authority])
         .rpc();
 
       assert.fail("Should have thrown an error");
