@@ -124,8 +124,8 @@ pub struct ClaimWinnings<'info> {
 
     #[account(
         mut,
-        constraint = position.user == user.key() @ PredictionMarketError::InvalidVault,
-        constraint = position.market == market.key() @ PredictionMarketError::InvalidVault
+        constraint = position.user == user.key() @ PredictionMarketError::InvalidPositionOwner,
+        constraint = position.market == market.key() @ PredictionMarketError::InvalidPositionMarket
     )]
     pub position: Account<'info, Position>,
 
@@ -134,7 +134,7 @@ pub struct ClaimWinnings<'info> {
 
     #[account(
         mut,
-        constraint = user_token_account.owner == user.key() @ PredictionMarketError::InvalidVault,
+        constraint = user_token_account.owner == user.key() @ PredictionMarketError::InvalidTokenAccountOwner,
     )]
     pub user_token_account: Account<'info, TokenAccount>,
 

@@ -42,8 +42,8 @@ pub struct CollectFees<'info> {
 
     #[account(
         mut,
-        constraint = fee_receiver.owner == authority.key() @ PredictionMarketError::InvalidVault,
-        constraint = fee_receiver.mint == market_vault.mint @ PredictionMarketError::InvalidVault
+        constraint = fee_receiver.owner == authority.key() @ PredictionMarketError::InvalidTokenAccountOwner,
+        constraint = fee_receiver.mint == market_vault.mint @ PredictionMarketError::InvalidTokenMint
     )]
     pub fee_receiver: Account<'info, TokenAccount>,
 

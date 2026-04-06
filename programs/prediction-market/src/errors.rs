@@ -8,6 +8,14 @@ pub enum PredictionMarketError {
     MarketAlreadyResolved,
     #[msg("Invalid vault for this market")]
     InvalidVault,
+    #[msg("Invalid position owner for this position account")]
+    InvalidPositionOwner,
+    #[msg("Invalid position market linkage")]
+    InvalidPositionMarket,
+    #[msg("Invalid token account owner")]
+    InvalidTokenAccountOwner,
+    #[msg("Invalid token mint for this operation")]
+    InvalidTokenMint,
     #[msg("Invalid oracle feed for this market")]
     InvalidFeed,
     #[msg("Too early to resolve the market")]
@@ -20,10 +28,6 @@ pub enum PredictionMarketError {
     MarketNotResolved,
     #[msg("No winnings to claim")]
     NoWinningsToClaim,
-    #[msg("Unauthorized to resolve this market")]
-    UnauthorizedResolver,
-    #[msg("Unauthorized to update the oracle feed")]
-    UnauthorizedUpdater,
     #[msg("Unauthorized to collect fees")]
     UnauthorizedFeeCollector,
     #[msg("No fees to collect")]

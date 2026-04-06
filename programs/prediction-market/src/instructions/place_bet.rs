@@ -129,7 +129,8 @@ pub struct PlaceBet<'info> {
         mut,
         seeds = [b"vault", market.key().as_ref()],
         bump,
-        constraint = market_vault.key() == market.vault @ PredictionMarketError::InvalidVault
+        constraint = market_vault.key() == market.vault @ PredictionMarketError::InvalidVault,
+        constraint = user_token_account.mint == market_vault.mint @ PredictionMarketError::InvalidTokenMint
     )]
     pub market_vault: Account<'info, TokenAccount>,
 
