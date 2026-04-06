@@ -2,8 +2,18 @@ use anchor_lang::prelude::*;
 use crate::state::*;
 use crate::errors::*;
 use switchboard_on_demand::on_demand::accounts::pull_feed::PullFeedAccountData;
+use switchboard_on_demand::{ON_DEMAND_DEVNET_PID, ON_DEMAND_MAINNET_PID};
 
 pub fn resolve_with_switchboard_oracle(ctx: Context<ResolveMarket>) -> Result<()> {
+    // Ensure the feed account is owned by Switchboard On-Demand (devnet or mainnet program ID).
+    // Crate uses a different `Pubkey` newtype than Anchor; compare raw bytes.
+    let owner_bytes = ctx.accounts.oracle_feed.owner.to_bytes();
+    require!(
+        owner_bytes == ON_DEMAND_DEVNET_PID.to_bytes()
+            || owner_bytes == ON_DEMAND_MAINNET_PID.to_bytes(),
+        PredictionMarketError::InvalidFeed
+    );
+
     let clock = Clock::get()?;
     let market = &mut ctx.accounts.market;
     
@@ -100,7 +110,6 @@ pub struct ResolveMarket<'info> {
     )]
     pub authority: Signer<'info>,
 
-    /// CHECK: Switchboard On-Demand pull feed account
-    /// The feed hash stored in the market account is used to verify this is the correct feed
+    /// CHECK: Switchboard On-Demand pull feed; owner verified in instruction (see crate `program_id`).
     pub oracle_feed: AccountInfo<'info>,
 }
